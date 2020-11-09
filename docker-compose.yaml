@@ -1,0 +1,65 @@
+version: "3.7"
+
+services:
+  main:
+    container_name: nest
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - ${PORT_SERVER}:${PORT_SERVER}
+    command: yarn start:dev
+    environment:
+      - NODE_ENV=development
+
+    env_file:
+      - .env
+    networks:
+      - webnet
+    depends_on:
+      - redis
+      - mysql
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    environment:
+      - NGINX_HOST=moseon.com.br
+      - NGINX_PORT=80
+    networks:
+      - webnet
+    volumes:
+      - ./nginx/nest.conf:/etc/nginx/conf.d/default.conf
+    command: [nginx-debug, "-g", "daemon off;"]
+    ports:
+      - 80:80
+    depends_on:
+      - main
+
+  redis:
+    container_name: redis
+    image: redis:5
+    networks:
+      - webnet
+    restart: always
+  mysql:
+    container_name: mysql
+    image: mysql:5.7
+    networks:
+      - webnet
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_DATABASE: ${DB_DATABASE}
+    restart: always
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./data:/var/lib/mysql
+networks:
+  webnet:
+    driver: bridge
